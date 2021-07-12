@@ -195,6 +195,16 @@ class BidictBase(BidirectionalMapping[KT, VT]):
         selfget = self.get
         return all(selfget(k, _NONE) == v for (k, v) in other.items())  # type: ignore
 
+    def equals_order_sensitive(self, other: object) -> bool:
+        """Order-sensitive equality check.
+
+        *See also* :ref:`eq-order-insensitive`
+        """
+        # Same short-circuit as in __eq__ above.
+        if not isinstance(other, _t.Mapping) or len(self) != len(other):
+            return False
+        return all(i == j for (i, j) in zip(self.items(), other.items()))
+
     # The following methods are mutating and so are not public. But they are implemented in this
     # non-mutable base class (rather than the mutable `bidict` subclass) because they are used here
     # during initialization (starting with the `_update` method). (Why is this? Because `__init__`
@@ -372,6 +382,14 @@ class BidictBase(BidirectionalMapping[KT, VT]):
     def __getitem__(self, key: KT) -> VT:
         """*x.__getitem__(key)　⟺　x[key]*"""
         return self._fwdm[key]
+
+    # On Python 3.8+, dicts are reversible, so bidict can also expose an efficient __reverse__
+    # implementation. TODO: remove the following check once support is dropped for 3.6 and 3.7.
+    # Define __reversed__ conditionally to keep issubclass(bidict, Reversible) consistent with dict.
+    if hasattr(_fwdm_cls, '__reversed__'):
+        def __reversed__(self) -> _t.Iterator[KT]:
+            """Iterator over the contained keys in reverse order."""
+            return reversed(self._fwdm)
 
 
 # Work around weakref slot with Generics bug on Python 3.6 (https://bugs.python.org/issue41451):
